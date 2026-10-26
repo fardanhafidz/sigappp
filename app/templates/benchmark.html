@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Performa Kriptografi - Portal Bansos{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header: Title, Subtitle & Action Button (Sesuai admin-panel-kriptografi.jpeg) -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Audit Performa Kriptografi</h1>
+      <p class="text-xs sm:text-sm text-slate-500 mt-1">
+        Pengujian komparasi efisiensi komputasi enkripsi berkas administrasi bansos.
+      </p>
+    </div>
+
+    <div>
+      <a href="/benchmark"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-white bg-[#009ee2] hover:bg-[#0284c7] shadow-sm transition active:scale-95">
+        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        <span>Jalankan Benchmark</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Card Container: System Status Bar + Scenarios Table + Footer -->
+  <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+
+    <!-- System Status Bar -->
+    <div class="px-6 py-3.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span class="text-slate-700 font-medium">Lingkungan Pengujian:</span>
+        <span class="px-2.5 py-1 bg-slate-100 text-slate-800 rounded font-mono text-[11px] font-semibold border border-slate-200/70">
+          OpenSSL 3.0.9 (Engine SSE4.2 / AVX2)
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs font-mono text-slate-600">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>Node Verifikasi: JKT-DTKS-01</span>
+      </div>
+    </div>
+
+    <!-- Scenarios Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50/70 border-b border-slate-200/80 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            <th class="py-3.5 px-6">SKENARIO UJI</th>
+            <th class="py-3.5 px-6">CIPHER</th>
+            <th class="py-3.5 px-6 text-right">WAKTU ENKRIPSI (MS)</th>
+            <th class="py-3.5 px-6 text-right">WAKTU DEKRIPSI (MS)</th>
+            <th class="py-3.5 px-6 text-right">THROUGHPUT (MB/S)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for s in scenarios %}
+            <tr class="hover:bg-slate-50/60 transition">
+              <!-- Skenario Uji -->
+              <td class="py-4 px-6">
+                <div class="font-bold text-slate-800 text-sm">{{ s.name }}</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">{{ s.desc }}</div>
+              </td>
+
+              <!-- Cipher Badge -->
+              <td class="py-4 px-6">
+                {% if s.cipher_badge_type == 'aes' %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-[#e0f2fe] text-[#0284c7] font-mono text-xs font-semibold border border-sky-100">
+                    {{ s.cipher }}
+                  </span>
+                {% elif s.cipher_badge_type == 'des' %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-purple-50 text-purple-700 font-mono text-xs font-semibold border border-purple-200/80">
+                    {{ s.cipher }} <span class="ml-1 text-purple-500 font-normal">{{ s.cipher_sub }}</span>
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-mono text-xs font-semibold border border-slate-200">
+                    {{ s.cipher }} <span class="ml-1 text-slate-400 font-normal">{{ s.cipher_sub }}</span>
+                  </span>
+                {% endif %}
+              </td>
+
+              <!-- Waktu Enkripsi -->
+              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">
+                {{ s.enc_time_ms }}
+              </td>
+
+              <!-- Waktu Dekripsi -->
+              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">
+                {{ s.dec_time_ms }}
+              </td>
+
+              <!-- Throughput -->
+              <td class="py-4 px-6 text-right font-mono font-bold text-slate-900 text-xs sm:text-sm">
+                {{ s.throughput }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Footer Bar -->
+    <div class="px-6 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+      <div>
+        Menampilkan {{ scenarios|length }} skenario tolok ukur kriptografi aktif
+      </div>
+      <div class="font-mono text-slate-400">
+        Waktu pengujian terakhir: {{ last_tested }}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
