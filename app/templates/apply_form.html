@@ -226,7 +226,7 @@
           <!-- 1. Pindaian KTP / KK (Max 2MB) -> AES-256-CBC -->
           <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
             <input type="file" id="file_ktp_kk" name="file_ktp_kk" required accept=".pdf,.jpg,.jpeg,.png"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ktp')" />
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ktp', 2)" />
             <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -240,7 +240,7 @@
           <!-- 2. Surat Keterangan Tidak Mampu (Max 5MB) -> AES-256-CBC -->
           <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
             <input type="file" id="file_slip_gaji" name="file_slip_gaji" required accept=".pdf,.doc,.docx"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-slip')" />
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-slip', 5)" />
             <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -254,7 +254,7 @@
           <!-- 3. Formulir Berita Acara (PDF) -> DES-CBC -->
           <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
             <input type="file" id="file_berita_acara" name="file_berita_acara" required accept=".pdf,.doc,.docx"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ba')" />
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ba', 10)" />
             <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -268,7 +268,7 @@
           <!-- 4. Video Bukti Kondisi Hunian (Max 100MB) -> RC4 -->
           <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
             <input type="file" id="file_video_rumah" name="file_video_rumah" required accept=".mp4,.avi,.mkv,.mov"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-video')" />
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-video', 100)" />
             <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -284,7 +284,7 @@
 
       <!-- Submit Button (Identik di pojok kanan bawah dengan upload-page-user.jpeg) -->
       <div class="flex justify-end pt-4 border-t border-slate-100">
-        <button type="submit"
+        <button type="submit" id="submit-btn"
           class="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#009ee2] hover:bg-[#0284c7] transition shadow-xs flex items-center gap-2 active:scale-95">
           <span>Kirim Pengajuan</span>
         </button>
@@ -296,12 +296,53 @@
 </div>
 
 <script>
-  function updateFileName(input, targetId) {
+  // Track size-error state per input
+  const sizeErrors = {};
+
+  function updateFileName(input, targetId, maxMB) {
+    const el = document.getElementById(targetId);
     if (input.files && input.files[0]) {
-      const el = document.getElementById(targetId);
-      el.textContent = '✓ ' + input.files[0].name;
-      el.className = 'text-[11px] text-emerald-600 font-semibold mt-1 truncate max-w-[200px] mx-auto';
+      const file = input.files[0];
+      const maxBytes = maxMB * 1024 * 1024;
+      if (file.size > maxBytes) {
+        // Show error, clear the input, mark error
+        el.textContent = '✗ Ukuran file melebihi batas ' + maxMB + 'MB! (' + (file.size / 1024 / 1024).toFixed(1) + 'MB)';
+        el.className = 'text-[11px] text-rose-600 font-semibold mt-1 truncate max-w-[200px] mx-auto';
+        input.value = '';
+        sizeErrors[input.id] = true;
+      } else {
+        el.textContent = '✓ ' + file.name;
+        el.className = 'text-[11px] text-emerald-600 font-semibold mt-1 truncate max-w-[200px] mx-auto';
+        sizeErrors[input.id] = false;
+      }
+    }
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    const hasError = Object.values(sizeErrors).some(v => v === true);
+    const btn = document.getElementById('submit-btn');
+    if (hasError) {
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
     }
   }
+
+  // Also block submission as a safety net
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[action="/kpm/apply"]');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        const hasError = Object.values(sizeErrors).some(v => v === true);
+        if (hasError) {
+          e.preventDefault();
+          alert('Terdapat file yang melebihi batas ukuran. Silakan pilih file yang lebih kecil.');
+        }
+      });
+    }
+  });
 </script>
 {% endblock %}

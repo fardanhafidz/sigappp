@@ -164,6 +164,13 @@ async def submit_application(
         )
 
     # Validasi kelengkapan berkas
+    # Batas ukuran file (dalam bytes): KTP 2MB, SKTM 5MB, Berita Acara 10MB, Video 100MB
+    MAX_SIZES_MB = {
+        "file_ktp_kk": 2,
+        "file_slip_gaji": 5,
+        "file_berita_acara": 10,
+        "file_video_rumah": 100,
+    }
     uploaded_files = [
         (file_ktp_kk, "ktp_kk", "Pindaian KTP / KK", "AES-256-CBC"),
         (file_slip_gaji, "slip_gaji", "Slip Gaji / SKTM", "AES-256-CBC"),
@@ -178,6 +185,30 @@ async def submit_application(
                 status_code=status.HTTP_303_SEE_OTHER
             )
 
+    # Baca dan validasi ukuran file sebelum memproses enkripsi
+    file_bytes_map = {}
+    for f, category, label, cipher_type in uploaded_files:
+        raw = await f.read()
+        max_bytes = MAX_SIZES_MB[f.field_name if hasattr(f, 'field_name') else category] * 1024 * 1024 if category in MAX_SIZES_MB else None
+        # Cari max size berdasarkan nama field input
+        field_max_mb = None
+        if category == "ktp_kk":
+            field_max_mb = MAX_SIZES_MB["file_ktp_kk"]
+        elif category == "slip_gaji":
+            field_max_mb = MAX_SIZES_MB["file_slip_gaji"]
+        elif category == "berita_acara":
+            field_max_mb = MAX_SIZES_MB["file_berita_acara"]
+        elif category == "video_rumah":
+            field_max_mb = MAX_SIZES_MB["file_video_rumah"]
+
+        if field_max_mb and len(raw) > field_max_mb * 1024 * 1024:
+            actual_mb = round(len(raw) / 1024 / 1024, 1)
+            return RedirectResponse(
+                url=f"/kpm/apply?error=Berkas+{label}+melebihi+batas+{field_max_mb}MB+(ukuran+file:+{actual_mb}MB).",
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+        file_bytes_map[category] = raw
+
     # Buat record Application baru
     nomor_pengajuan = f"BANSOS-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
     new_app = Application(
@@ -191,7 +222,7 @@ async def submit_application(
 
     # Proses enkripsi untuk masing-masing berkas
     for file_obj, category, label, cipher_type in uploaded_files:
-        plain_bytes = await file_obj.read()
+        plain_bytes = file_bytes_map[category]  # gunakan bytes yang sudah dibaca saat validasi
         file_id = str(uuid.uuid4())
         iv_hex = None
 

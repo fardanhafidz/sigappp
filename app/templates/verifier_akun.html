@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Akun Petugas - Field Verifier Hub{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-3xl">
+
+  <!-- Page Header -->
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Akun Petugas</h1>
+    <p class="text-xs text-slate-500 mt-1">Informasi akun dan keamanan verifikator lapangan.</p>
+  </div>
+
+  <!-- Profile Card -->
+  <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8">
+    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+
+      <!-- Avatar -->
+      <div class="relative shrink-0">
+        <div class="w-20 h-20 rounded-2xl bg-[#0F172A] text-white flex items-center justify-center font-extrabold text-2xl uppercase shadow-sm">
+          {{ current_user.nama[:2] }}
+        </div>
+        <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+          <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="flex-1 text-center sm:text-left">
+        <div class="text-xl font-bold text-slate-900">{{ current_user.nama }}</div>
+        <div class="text-sm text-slate-500 mt-0.5">Field Verifier &bull; JKT-DTKS</div>
+        <div class="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Petugas Verifikator
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Aktif
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Info -->
+  <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-5">
+    <div class="text-sm font-bold text-slate-900">Informasi Akun</div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
+      <div>
+        <label class="block font-semibold text-slate-500 mb-1.5">Nama Lengkap</label>
+        <div class="px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 font-medium">
+          {{ current_user.nama }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-slate-500 mb-1.5">NIK / ID Petugas</label>
+        <div class="px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 font-mono">
+          {{ current_user.nik }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-slate-500 mb-1.5">Role / Jabatan</label>
+        <div class="px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 font-medium capitalize">
+          {{ current_user.role }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-slate-500 mb-1.5">Tanggal Terdaftar</label>
+        <div class="px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-800 font-mono">
+          {{ current_user.created_at.strftime('%d %B %Y') }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Stats -->
+  <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8">
+    <div class="text-sm font-bold text-slate-900 mb-5">Statistik Aktivitas</div>
+    <div class="grid grid-cols-3 gap-4">
+      <div class="text-center p-4 rounded-xl bg-slate-50 border border-slate-100">
+        <div class="text-3xl font-extrabold text-slate-900">{{ stats.total }}</div>
+        <div class="text-[11px] text-slate-500 mt-1 font-medium">Total Ditangani</div>
+      </div>
+      <div class="text-center p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+        <div class="text-3xl font-extrabold text-emerald-600">{{ stats.approved }}</div>
+        <div class="text-[11px] text-emerald-600 mt-1 font-medium">Disetujui</div>
+      </div>
+      <div class="text-center p-4 rounded-xl bg-rose-50 border border-rose-100">
+        <div class="text-3xl font-extrabold text-rose-500">{{ stats.rejected }}</div>
+        <div class="text-[11px] text-rose-500 mt-1 font-medium">Ditolak</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Info -->
+  <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8">
+    <div class="text-sm font-bold text-slate-900 mb-5">Keamanan Sistem</div>
+    <div class="space-y-3 text-xs">
+      <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-800">Password Terenkripsi (bcrypt)</div>
+            <div class="text-[11px] text-slate-400">Password disimpan aman dengan hashing bcrypt</div>
+          </div>
+        </div>
+        <span class="text-emerald-600 font-semibold">✓ Aman</span>
+      </div>
+
+      <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-sky-50 text-[#009ee2] flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-800">KDF Salt (PBKDF2-HMAC-SHA256)</div>
+            <div class="text-[11px] font-mono text-slate-400">{{ current_user.kdf_salt[:16] }}...{{ current_user.kdf_salt[-8:] }}</div>
+          </div>
+        </div>
+        <span class="text-sky-600 font-semibold">✓ Aktif</span>
+      </div>
+
+      <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <div class="font-semibold text-slate-800">Sesi Berbasis Cookie HTTP-Only</div>
+            <div class="text-[11px] text-slate-400">Autentikasi via session token terproteksi</div>
+          </div>
+        </div>
+        <span class="text-purple-600 font-semibold">✓ Aktif</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Action -->
+  <div class="flex justify-end">
+    <a href="/auth/logout"
+      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 transition shadow-xs">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+      </svg>
+      Keluar dari Sistem
+    </a>
+  </div>
+
+</div>
+{% endblock %}

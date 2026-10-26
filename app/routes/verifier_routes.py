@@ -196,3 +196,127 @@ async def verifier_download_file(
             "Content-Disposition": f'attachment; filename="{doc.original_filename}"'
         }
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# HALAMAN: KELUARGA PENERIMA
+# ─────────────────────────────────────────────────────────────
+@router.get("/keluarga", response_class=HTMLResponse)
+async def verifier_keluarga(request: Request, db: Session = Depends(get_db)):
+    """Daftar semua KPM yang pengajuannya berstatus Approved."""
+    user = check_verifier_user(request, db)
+
+    approved_apps = (
+        db.query(Application)
+        .options(joinedload(Application.user), joinedload(Application.documents))
+        .filter(Application.status == "Approved")
+        .order_by(Application.updated_at.desc())
+        .all()
+    )
+
+    total = db.query(Application).count()
+    pending = db.query(Application).filter(Application.status == "Pending").count()
+    approved = db.query(Application).filter(Application.status == "Approved").count()
+    rejected = db.query(Application).filter(Application.status == "Rejected").count()
+
+    total_docs = sum(len(a.documents) for a in approved_apps)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="verifier_keluarga.html",
+        context={
+            "current_user": user,
+            "approved_apps": approved_apps,
+            "total_docs": total_docs,
+            "stats": {"total": total, "pending": pending, "approved": approved, "rejected": rejected},
+        }
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# HALAMAN: ARSIP BERKAS
+# ─────────────────────────────────────────────────────────────
+@router.get("/arsip", response_class=HTMLResponse)
+async def verifier_arsip(request: Request, db: Session = Depends(get_db)):
+    """Seluruh berkas terenkripsi yang pernah diunggah oleh warga."""
+    user = check_verifier_user(request, db)
+
+    documents = (
+        db.query(Document)
+        .options(
+            joinedload(Document.user),
+            joinedload(Document.application),
+        )
+        .order_by(Document.created_at.desc())
+        .all()
+    )
+
+    aes_count = sum(1 for d in documents if "AES" in d.cipher_used)
+    des_count = sum(1 for d in documents if "DES" in d.cipher_used)
+    rc4_count = sum(1 for d in documents if "RC4" in d.cipher_used)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="verifier_arsip.html",
+        context={
+            "current_user": user,
+            "documents": documents,
+            "aes_count": aes_count,
+            "des_count": des_count,
+            "rc4_count": rc4_count,
+        }
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# HALAMAN: BUKU ALAMAT RT/RW
+# ─────────────────────────────────────────────────────────────
+@router.get("/alamat", response_class=HTMLResponse)
+async def verifier_alamat(request: Request, db: Session = Depends(get_db)):
+    """Peta distribusi warga pemohon berdasarkan keterangan/domisili."""
+    user = check_verifier_user(request, db)
+
+    all_apps = (
+        db.query(Application)
+        .options(joinedload(Application.user))
+        .order_by(Application.created_at.desc())
+        .all()
+    )
+
+    # Kelompokkan berdasarkan keterangan (digunakan sebagai "alamat/wilayah")
+    wilayah_map: dict[str, list] = {}
+    for app in all_apps:
+        key = (app.keterangan or "Tidak Diketahui").strip()[:60]
+        wilayah_map.setdefault(key, []).append(app)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="verifier_alamat.html",
+        context={
+            "current_user": user,
+            "wilayah_list": wilayah_map,
+        }
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# HALAMAN: AKUN PETUGAS
+# ─────────────────────────────────────────────────────────────
+@router.get("/akun", response_class=HTMLResponse)
+async def verifier_akun(request: Request, db: Session = Depends(get_db)):
+    """Profil dan informasi keamanan akun verifikator yang sedang login."""
+    user = check_verifier_user(request, db)
+
+    total = db.query(Application).count()
+    approved = db.query(Application).filter(Application.status == "Approved").count()
+    rejected = db.query(Application).filter(Application.status == "Rejected").count()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="verifier_akun.html",
+        context={
+            "current_user": user,
+            "stats": {"total": total, "approved": approved, "rejected": rejected},
+        }
+    )
+
