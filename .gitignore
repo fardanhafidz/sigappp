@@ -1,0 +1,25 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite Database
+bansos.db
+*.db-journal
+
+# Encrypted storage (keep .gitkeep)
+storage/encrypted/*
+!storage/encrypted/.gitkeep
+
+# AI stuff
+system.md
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
