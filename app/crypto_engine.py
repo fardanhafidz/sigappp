@@ -34,9 +34,7 @@ except ImportError:
         )
 
 
-# ============================================================================
 # 1. KEY DERIVATION FUNCTION (KDF)
-# ============================================================================
 def derive_key(secret: str | bytes, salt: bytes, length: int = 32) -> bytes:
     """
     Menurunkan kunci enkripsi menggunakan PBKDF2-HMAC-SHA256 dengan 100.000 iterasi.
@@ -78,9 +76,7 @@ def get_user_cipher_key(secret: str, salt_hex: str, cipher_type: str) -> bytes:
         return derive_key(secret, salt_bytes, length=32)
 
 
-# ============================================================================
 # 2. AES-256-CBC (Advanced Encryption Standard)
-# ============================================================================
 def encrypt_aes_256_cbc(data: bytes, key: bytes, iv: bytes | None = None) -> Tuple[bytes, bytes]:
     """
     Enkripsi data biner menggunakan AES-256-CBC dengan PKCS#7 padding.
@@ -128,9 +124,7 @@ def decrypt_aes_256_cbc(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
     return unpad(decrypted_padded, AES.block_size, style="pkcs7")
 
 
-# ============================================================================
 # 3. DES-CBC (Data Encryption Standard)
-# ============================================================================
 def encrypt_des_cbc(data: bytes, key: bytes, iv: bytes | None = None) -> Tuple[bytes, bytes]:
     """
     Enkripsi data biner menggunakan DES-CBC dengan PKCS#7 padding.
@@ -178,9 +172,7 @@ def decrypt_des_cbc(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
     return unpad(decrypted_padded, DES.block_size, style="pkcs7")
 
 
-# ============================================================================
 # 4. RC4 (Stream Cipher murni)
-# ============================================================================
 def encrypt_rc4(data: bytes, key: bytes) -> bytes:
     """
     Enkripsi data biner menggunakan Stream Cipher RC4 (ARC4).
@@ -212,9 +204,7 @@ def decrypt_rc4(ciphertext: bytes, key: bytes) -> bytes:
     return cipher.decrypt(ciphertext)
 
 
-# ============================================================================
 # 5. BENCHMARK UTILITY
-# ============================================================================
 def benchmark_ciphers(data_size_kb: int = 512, iterations: int = 1) -> Dict[str, Any]:
     """
     Mengukur waktu eksekusi enkripsi & dekripsi serta throughput (MB/s)
