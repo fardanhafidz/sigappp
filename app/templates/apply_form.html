@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if existing_app %}
+    Pengajuan Terdaftar: #{{ existing_app.nomor_pengajuan }} - Portal Bansos
+  {% else %}
+    Formulir Pengajuan Baru - Portal Bansos
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl">
+
+  {% if existing_app %}
+    <!-- ================================================================= -->
+    <!-- KONDISI 1: WARGA SUDAH MEMILIKI PENGAJUAN (READONLY + TARIK/HAPUS) -->
+    <!-- ================================================================= -->
+
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Pengajuan Berkas Bansos Aktif</h1>
+        <p class="text-xs text-slate-500 mt-1">
+          Anda telah memiliki pengajuan terdaftar. Satu NIK hanya dapat memiliki satu pengajuan aktif.
+        </p>
+      </div>
+
+      <!-- Quick Status Badge -->
+      <div>
+        {% if existing_app.status == 'Pending' %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Menunggu Verifikasi Lapangan
+          </span>
+        {% elif existing_app.status == 'Approved' %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Pengajuan Disetujui
+          </span>
+        {% else %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            Pengajuan Ditolak
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Alert Status & Aturan Penarikan -->
+    <div class="p-4 rounded-xl border border-sky-200 bg-sky-50/80 text-xs text-sky-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-start gap-3">
+        <svg class="w-5 h-5 text-[#009ee2] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div>
+          <div class="font-bold text-slate-800">
+            Registrasi #{{ existing_app.nomor_pengajuan }} &bull; Dikirim {{ existing_app.created_at.strftime('%d %B %Y, %H:%M') }} WIB
+          </div>
+          <p class="text-[11px] text-slate-600 mt-0.5">
+            Anda tidak dapat membuat ajuan baru selama pengajuan ini masih terdaftar. Untuk mengubah data atau mengunggah ulang berkas, silakan <strong>tarik pengajuan</strong> ini terlebih dahulu.
+          </p>
+        </div>
+      </div>
+
+      <a href="/kpm/dashboard" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shrink-0 text-center">
+        Lihat di Beranda
+      </a>
+    </div>
+
+    <!-- Form Container (Readonly State dengan Desain Identik) -->
+    <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-8">
+
+      <!-- Section 1: Data Diri (Readonly) -->
+      <div>
+        <div class="bg-slate-50 px-4 py-2.5 rounded-lg text-xs font-bold text-slate-800 mb-5 flex items-center justify-between">
+          <span>Data Diri Pemohon</span>
+          <span class="text-[11px] text-slate-400 font-normal">Terkunci (Terdaftar)</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1.5">Nama Sesuai KTP</label>
+            <input type="text" readonly value="{{ current_user.nama }}"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50/80 text-slate-700 text-xs font-medium cursor-not-allowed" />
+            <p class="text-[10px] text-slate-400 mt-1">NIK: {{ current_user.nik }}</p>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1.5">Alamat Domisili / Keterangan Permohonan</label>
+            <input type="text" readonly value="{{ existing_app.keterangan or '-' }}"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50/80 text-slate-700 text-xs font-medium cursor-not-allowed" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Berkas yang Telah Terenkripsi di Server (2x2 Grid) -->
+      <div>
+        <div class="bg-slate-50 px-4 py-2.5 rounded-lg text-xs font-bold text-slate-800 mb-5 flex items-center justify-between">
+          <span>Berkas Terenkripsi yang Terdaftar ({{ existing_app.documents|length }} Berkas)</span>
+          <span class="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Tersimpan Terenkripsi
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {% for doc in existing_app.documents %}
+            <div class="rounded-2xl border border-slate-200 bg-slate-50/40 p-6 flex flex-col justify-between hover:border-[#009ee2]/50 hover:bg-white transition">
+              <div class="flex items-start gap-4">
+                <div class="w-11 h-11 rounded-xl bg-sky-50 text-[#009ee2] flex items-center justify-center shrink-0">
+                  {% if 'video' in doc.category or 'mp4' in doc.mime_type %}
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  {% elif 'ktp' in doc.category %}
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                    </svg>
+                  {% else %}
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  {% endif %}
+                </div>
+
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-bold text-slate-800">{{ doc.category_label }}</div>
+                  <div class="text-[11px] text-slate-500 font-mono mt-0.5 truncate">{{ doc.original_filename }}</div>
+                  <div class="flex items-center gap-2 mt-2">
+                    <span class="text-[10px] font-mono text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                      {{ doc.cipher_used }}
+                    </span>
+                    <span class="text-[10px] text-slate-400 font-mono">
+                      {{ (doc.file_size / 1024)|round(1) }} KB
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-slate-200/60 flex justify-end">
+                <a href="/kpm/download/{{ doc.id }}"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#009ee2] hover:text-[#0284c7] transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Unduh Dokumen Asli</span>
+                </a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Action Footer: HANYA BISA DI DELETE / TARIK PENGAJUAN -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-slate-100">
+        <div class="text-xs text-slate-500">
+          Untuk mengisi data baru atau mengganti berkas, tarik pengajuan ini terlebih dahulu.
+        </div>
+
+        <form action="/kpm/withdraw" method="POST"
+          onsubmit="return confirm('Apakah Anda yakin ingin menarik/menghapus pengajuan #{{ existing_app.nomor_pengajuan }}? Seluruh berkas terenkripsi Anda akan dihapus permanen dari server.');">
+          <button type="submit"
+            class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-300 transition flex items-center justify-center gap-2 shadow-xs active:scale-95">
+            <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span>Tarik / Hapus Pengajuan</span>
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+  {% else %}
+    <!-- ================================================================= -->
+    <!-- KONDISI 2: FORMULIR PENGAJUAN BARU (BELUM ADA PENGAJUAN)          -->
+    <!-- ================================================================= -->
+
+    <!-- Page Header (Identik dengan upload-page-user.jpeg) -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Formulir Pengajuan Baru</h1>
+      <p class="text-xs text-slate-500 mt-1">Lengkapi data identitas dan unggah dokumen pendukung untuk diverifikasi oleh dinas terkait.</p>
+    </div>
+
+    <!-- Form Container (Identik dengan upload-page-user.jpeg) -->
+    <form action="/kpm/apply" method="POST" enctype="multipart/form-data"
+      class="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 sm:p-8 space-y-8">
+
+      <!-- Section 1: Data Diri -->
+      <div>
+        <div class="bg-slate-50 px-4 py-2.5 rounded-lg text-xs font-bold text-slate-800 mb-5">
+          Data Diri
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div>
+            <label for="nama_display" class="block font-semibold text-slate-700 mb-1.5">
+              Nama Sesuai KTP <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="nama_display" readonly value="{{ current_user.nama }}"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-xs font-medium cursor-not-allowed" />
+            <p class="text-[10px] text-slate-400 mt-1">Otomatis terhubung dengan NIK: {{ current_user.nik }}</p>
+          </div>
+
+          <div>
+            <label for="keterangan" class="block font-semibold text-slate-700 mb-1.5">
+              Alamat Domisili / Keterangan Permohonan <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="keterangan" name="keterangan" required
+              placeholder="Contoh: Jl. Kebon Sirih No. 12, RT 04/RW 02 - Bantuan Wirausaha"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#009ee2] text-xs transition" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Unggah Berkas Persyaratan (2x2 Grid identik dengan upload-page-user.jpeg) -->
+      <div>
+        <div class="bg-slate-50 px-4 py-2.5 rounded-lg text-xs font-bold text-slate-800 mb-5">
+          Unggah Berkas Persyaratan
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          <!-- 1. Pindaian KTP / KK (Max 2MB) -> AES-256-CBC -->
+          <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
+            <input type="file" id="file_ktp_kk" name="file_ktp_kk" required accept=".pdf,.jpg,.jpeg,.png"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ktp')" />
+            <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Pindaian KTP / KK (Max 2MB)</div>
+            <div id="label-ktp" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
+            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi AES-256-CBC</span>
+          </div>
+
+          <!-- 2. Surat Keterangan Tidak Mampu (Max 5MB) -> AES-256-CBC -->
+          <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
+            <input type="file" id="file_slip_gaji" name="file_slip_gaji" required accept=".pdf,.doc,.docx"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-slip')" />
+            <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Surat Keterangan Tidak Mampu (Max 5MB)</div>
+            <div id="label-slip" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
+            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi AES-256-CBC</span>
+          </div>
+
+          <!-- 3. Formulir Berita Acara (PDF) -> DES-CBC -->
+          <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
+            <input type="file" id="file_berita_acara" name="file_berita_acara" required accept=".pdf,.doc,.docx"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-ba')" />
+            <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Formulir Berita Acara (PDF)</div>
+            <div id="label-ba" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
+            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi DES-CBC (Legacy)</span>
+          </div>
+
+          <!-- 4. Video Bukti Kondisi Hunian (Max 100MB) -> RC4 -->
+          <div class="relative group rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-[#009ee2] hover:shadow-xs transition p-8 text-center flex flex-col items-center justify-center cursor-pointer">
+            <input type="file" id="file_video_rumah" name="file_video_rumah" required accept=".mp4,.avi,.mkv,.mov"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="updateFileName(this, 'label-video')" />
+            <div class="w-12 h-12 rounded-xl bg-white border border-slate-200 text-slate-500 group-hover:text-[#009ee2] group-hover:border-[#009ee2]/40 flex items-center justify-center mb-3 shadow-2xs transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Video Bukti Kondisi Hunian (Max 100MB)</div>
+            <div id="label-video" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
+            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi RC4 Stream</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Submit Button (Identik di pojok kanan bawah dengan upload-page-user.jpeg) -->
+      <div class="flex justify-end pt-4 border-t border-slate-100">
+        <button type="submit"
+          class="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-[#009ee2] hover:bg-[#0284c7] transition shadow-xs flex items-center gap-2 active:scale-95">
+          <span>Kirim Pengajuan</span>
+        </button>
+      </div>
+
+    </form>
+  {% endif %}
+
+</div>
+
+<script>
+  function updateFileName(input, targetId) {
+    if (input.files && input.files[0]) {
+      const el = document.getElementById(targetId);
+      el.textContent = '✓ ' + input.files[0].name;
+      el.className = 'text-[11px] text-emerald-600 font-semibold mt-1 truncate max-w-[200px] mx-auto';
+    }
+  }
+</script>
+{% endblock %}
