@@ -340,6 +340,18 @@ def benchmark_ciphers(data_size_kb: int = 1024, iterations: int = 5) -> Dict[str
     rc4_vs_des = round(by_key["RC4"]["avg_speed_mbps"] / des_speed, 2)
     aes_vs_des = round(by_key["AES-256-CBC"]["avg_speed_mbps"] / des_speed, 2)
 
+    # Skala grafik perbandingan speed & waktu eksekusi (+15% headroom atas agar tidak menyentuh plafon)
+    raw_max_speed = max(max(e["encrypt_speed_mbps"], e["decrypt_speed_mbps"]) for e in entries) or 1.0
+    chart_max_speed = round(raw_max_speed * 1.15, 1)
+    raw_max_time = max(max(e["encrypt_time_ms"], e["decrypt_time_ms"]) for e in entries) or 1.0
+    chart_max_time = round(raw_max_time * 1.15, 2)
+
+    for e in entries:
+        e["enc_speed_pct"] = round(max(4.0, min(100.0, (e["encrypt_speed_mbps"] / chart_max_speed) * 100.0)), 1)
+        e["dec_speed_pct"] = round(max(4.0, min(100.0, (e["decrypt_speed_mbps"] / chart_max_speed) * 100.0)), 1)
+        e["enc_time_pct"] = round(max(4.0, min(100.0, (e["encrypt_time_ms"] / chart_max_time) * 100.0)), 1)
+        e["dec_time_pct"] = round(max(4.0, min(100.0, (e["decrypt_time_ms"] / chart_max_time) * 100.0)), 1)
+
     return {
         "environment": get_crypto_environment(),
         "data_size_kb": data_size_kb,
@@ -347,6 +359,24 @@ def benchmark_ciphers(data_size_kb: int = 1024, iterations: int = 5) -> Dict[str
         "iterations": iterations,
         "entries": entries,
         "by_key": by_key,
+        "chart": {
+            "max_speed_mbps": chart_max_speed,
+            "speed_ticks": [
+                round(chart_max_speed, 0),
+                round(chart_max_speed * 0.75, 0),
+                round(chart_max_speed * 0.5, 0),
+                round(chart_max_speed * 0.25, 0),
+                0,
+            ],
+            "max_time_ms": chart_max_time,
+            "time_ticks": [
+                round(chart_max_time, 2),
+                round(chart_max_time * 0.75, 2),
+                round(chart_max_time * 0.5, 2),
+                round(chart_max_time * 0.25, 2),
+                0,
+            ],
+        },
         "summary": {
             "fastest_cipher": fastest["cipher"],
             "fastest_speed_mbps": fastest["avg_speed_mbps"],

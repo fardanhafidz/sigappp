@@ -138,6 +138,154 @@
     </div>
   </div>
 
+  <!-- GRAFIK VISUAL PERBANDINGAN KECEPATAN & WAKTU EKSEKUSI (Transparan + Top Outline) -->
+  {% macro chart_bar(pct, label_val, title_text, color_hex, rgb_str, is_soft=false) %}
+    <div class="flex-1 max-w-[46px] h-full flex flex-col justify-end items-center group" title="{{ title_text }}">
+      <div class="text-[10px] font-mono font-semibold text-slate-700 mb-1 whitespace-nowrap">
+        {{ label_val }}
+      </div>
+      <div class="w-full rounded-t-md transition-all duration-300 group-hover:brightness-95"
+           style="height: {{ pct }}%;
+                  border-top: 2.5px {{ 'dashed' if is_soft else 'solid' }} {{ color_hex }};
+                  border-left: 1px solid rgba({{ rgb_str }}, 0.22);
+                  border-right: 1px solid rgba({{ rgb_str }}, 0.22);
+                  background: linear-gradient(180deg, rgba({{ rgb_str }}, {{ '0.14' if is_soft else '0.22' }}) 0%, rgba({{ rgb_str }}, 0.02) 100%);">
+      </div>
+    </div>
+  {% endmacro %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Chart 1: Throughput (MB/s) -->
+    <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-6 space-y-5">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Grafik Throughput (MB/s)</h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Payload {{ comparison.data_size_label }} &bull; Semakin tinggi semakin cepat</p>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-0.5 bg-slate-700 inline-block"></span> Enkripsi
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-0.5 border-t-2 border-dashed border-slate-500 inline-block"></span> Dekripsi
+          </span>
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- Y-Axis Ticks -->
+        <div class="w-12 pr-2 h-52 flex flex-col justify-between text-right font-mono text-[10px] text-slate-400 select-none -my-1.5 shrink-0">
+          {% for tick in comparison.chart.speed_ticks %}
+            <span>{{ tick|int }}</span>
+          {% endfor %}
+        </div>
+
+        <!-- Plot Area -->
+        <div class="flex-1 min-w-0">
+          <div class="relative h-52 border-b border-slate-200">
+            <!-- Horizontal Dashed Gridlines -->
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-transparent"></div>
+            </div>
+
+            <!-- Bar Groups -->
+            <div class="relative z-10 h-full grid grid-cols-3 gap-3 sm:gap-5 px-2 sm:px-4">
+              {% for item in comparison.entries %}
+                {% if item.badge_type == 'aes' %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#009ee2', '0, 158, 226', '#38bdf8', '56, 189, 248' %}
+                {% elif item.badge_type == 'des' %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#7c3aed', '124, 58, 237', '#a78bfa', '167, 139, 250' %}
+                {% else %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#0d9488', '13, 148, 136', '#2dd4bf', '45, 212, 191' %}
+                {% endif %}
+                <div class="h-full flex items-end justify-center gap-2">
+                  {{ chart_bar(item.enc_speed_pct, "%.1f"|format(item.encrypt_speed_mbps), item.cipher ~ " Enkripsi: " ~ item.encrypt_speed_mbps ~ " MB/s", c_enc, rgb_enc, false) }}
+                  {{ chart_bar(item.dec_speed_pct, "%.1f"|format(item.decrypt_speed_mbps), item.cipher ~ " Dekripsi: " ~ item.decrypt_speed_mbps ~ " MB/s", c_dec, rgb_dec, true) }}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- X-Axis Labels -->
+          <div class="grid grid-cols-3 gap-3 sm:gap-5 px-2 sm:px-4 pt-2.5 text-center">
+            {% for item in comparison.entries %}
+              <div class="text-[11px] font-mono font-semibold text-slate-700 truncate">{{ item.cipher }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart 2: Execution Time (ms) -->
+    <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-6 space-y-5">
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900">Grafik Waktu Proses (ms)</h2>
+          <p class="text-[11px] text-slate-400 mt-0.5">Rata-rata {{ comparison.iterations }} iterasi &bull; Semakin rendah semakin cepat</p>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-0.5 bg-slate-700 inline-block"></span> Enkripsi
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-0.5 border-t-2 border-dashed border-slate-500 inline-block"></span> Dekripsi
+          </span>
+        </div>
+      </div>
+
+      <div class="flex">
+        <!-- Y-Axis Ticks -->
+        <div class="w-12 pr-2 h-52 flex flex-col justify-between text-right font-mono text-[10px] text-slate-400 select-none -my-1.5 shrink-0">
+          {% for tick in comparison.chart.time_ticks %}
+            <span>{% if tick == 0 %}0{% elif comparison.chart.max_time_ms < 10 %}{{ "%.2f"|format(tick) }}{% else %}{{ "%.1f"|format(tick) }}{% endif %}</span>
+          {% endfor %}
+        </div>
+
+        <!-- Plot Area -->
+        <div class="flex-1 min-w-0">
+          <div class="relative h-52 border-b border-slate-200">
+            <!-- Horizontal Dashed Gridlines -->
+            <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-dashed border-slate-100"></div>
+              <div class="border-t border-transparent"></div>
+            </div>
+
+            <!-- Bar Groups -->
+            <div class="relative z-10 h-full grid grid-cols-3 gap-3 sm:gap-5 px-2 sm:px-4">
+              {% for item in comparison.entries %}
+                {% if item.badge_type == 'aes' %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#009ee2', '0, 158, 226', '#38bdf8', '56, 189, 248' %}
+                {% elif item.badge_type == 'des' %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#7c3aed', '124, 58, 237', '#a78bfa', '167, 139, 250' %}
+                {% else %}
+                  {% set c_enc, rgb_enc, c_dec, rgb_dec = '#0d9488', '13, 148, 136', '#2dd4bf', '45, 212, 191' %}
+                {% endif %}
+                <div class="h-full flex items-end justify-center gap-2">
+                  {{ chart_bar(item.enc_time_pct, "%.2f"|format(item.encrypt_time_ms), item.cipher ~ " Enkripsi: " ~ item.encrypt_time_ms ~ " ms", c_enc, rgb_enc, false) }}
+                  {{ chart_bar(item.dec_time_pct, "%.2f"|format(item.decrypt_time_ms), item.cipher ~ " Dekripsi: " ~ item.decrypt_time_ms ~ " ms", c_dec, rgb_dec, true) }}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- X-Axis Labels -->
+          <div class="grid grid-cols-3 gap-3 sm:gap-5 px-2 sm:px-4 pt-2.5 text-center">
+            {% for item in comparison.entries %}
+              <div class="text-[11px] font-mono font-semibold text-slate-700 truncate">{{ item.cipher }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- CARD 2: 4 Skenario Nyata SIGAP-PDP -->
   <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
     <div class="px-6 py-3.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
