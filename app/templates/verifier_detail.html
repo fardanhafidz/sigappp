@@ -25,7 +25,7 @@
       <div>
         <h1 class="text-xl font-bold text-slate-900 tracking-tight">Review Berkas: {{ application.user.nama }}</h1>
         <p class="text-xs text-slate-500 mt-1 font-mono">
-          NIK: {{ application.user.nik }} &bull; {{ application.keterangan or 'Kelurahan Kebon Sirih' }}
+          NIK: {{ application.user.nik }} &bull; {{ application.keterangan_plain or '-' }}
         </p>
       </div>
       <a href="/verifier/dashboard" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition" title="Tutup">
@@ -66,14 +66,28 @@
               <!-- Title & Size -->
               <div class="truncate">
                 <div class="text-sm font-bold text-slate-800">{{ doc.category_label }}</div>
-                <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                  {{ doc.original_filename.split('.')[-1].upper() }} &bull;
-                  {% if doc.file_size > 1048576 %}
-                    {{ (doc.file_size / 1048576)|round(1) }} MB
-                  {% else %}
-                    {{ (doc.file_size / 1024)|round(1) }} KB
+                <div class="text-[11px] text-slate-400 font-mono mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <span>{{ doc.original_filename.split('.')[-1].upper() }}</span>
+                  <span>&bull;</span>
+                  <span>
+                    {% if doc.file_size > 1048576 %}
+                      {{ (doc.file_size / 1048576)|round(1) }} MB
+                    {% else %}
+                      {{ (doc.file_size / 1024)|round(1) }} KB
+                    {% endif %}
+                  </span>
+                  <span>&bull;</span>
+                  <span class="text-slate-600 font-semibold">{{ doc.cipher_used }}</span>
+                  {% if doc.iv_hex %}
+                    <span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 border border-slate-200 text-[10px]">
+                      {% if 'RC4' in doc.cipher_used %}Nonce{% else %}IV{% endif %}: {{ doc.iv_hex[:8] }}...
+                    </span>
                   {% endif %}
-                  &bull; <span class="text-slate-500 font-semibold">{{ doc.cipher_used }}</span>
+                  {% if doc.sha256_hash %}
+                    <span class="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px]" title="SHA-256: {{ doc.sha256_hash }}">
+                      SHA-256: {{ doc.sha256_hash[:12] }}...
+                    </span>
+                  {% endif %}
                 </div>
               </div>
             </div>

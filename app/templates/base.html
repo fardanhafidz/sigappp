@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Portal Bansos - Sistem Verifikasi Terenkripsi{% endblock %}</title>
+  <title>{% block title %}SIGAP-PDP - Sistem Verifikasi Bansos Terenkripsi{% endblock %}</title>
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Plus Jakarta Sans / Inter -->
@@ -55,10 +55,10 @@
       <div class="h-16 px-6 flex items-center gap-3 border-b border-slate-100">
         <a href="/" class="flex items-center gap-3 group">
           <div class="w-9 h-9 rounded-full bg-[#009ee2] text-white flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-105 transition">
-            B
+            S
           </div>
           <div>
-            <div class="text-sm font-bold text-slate-900 leading-tight">Portal Bansos</div>
+            <div class="text-sm font-bold text-slate-900 leading-tight">SIGAP-PDP</div>
             <div class="text-[11px] text-slate-400">
               {% if current_user and current_user.role == 'verifikator' %}
                 Field Verifier Hub
@@ -100,9 +100,11 @@
                   </svg>
                   <span>Antrean Masuk</span>
                 </span>
-                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {% if request.query_params.get('status') == 'Pending' %}bg-white/20 text-white{% else %}bg-sky-50 text-sky-700{% endif %}">
-                  {{ stats.pending if stats else '32' }}
-                </span>
+                {% if stats is defined and stats %}
+                  <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {% if request.query_params.get('status') == 'Pending' %}bg-white/20 text-white{% else %}bg-sky-50 text-sky-700{% endif %}">
+                    {{ stats.pending }}
+                  </span>
+                {% endif %}
               </a>
 
               <a href="/verifier/dashboard?status=Approved"
@@ -268,7 +270,7 @@
         </a>
       {% else %}
         <div class="px-3.5 py-2 text-[11px] text-slate-400">
-          Sigapp v1.0 &bull; UU PDP
+          SIGAP-PDP v1.0 &bull; UU PDP
         </div>
       {% endif %}
     </div>

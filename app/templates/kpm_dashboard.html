@@ -124,7 +124,12 @@
                     </div>
                     <div>
                       <div class="font-bold text-slate-900 text-sm">{{ doc.category_label }}</div>
-                      <div class="text-[11px] text-slate-400 font-mono">{{ doc.original_filename }} &bull; {{ doc.cipher_used }}</div>
+                      <div class="text-[11px] text-slate-400 font-mono">
+                        {{ doc.original_filename }} &bull; {{ doc.cipher_used }}
+                        {% if doc.sha256_hash %}
+                          &bull; <span class="text-emerald-600">SHA-256: {{ doc.sha256_hash[:12] }}...</span>
+                        {% endif %}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -152,10 +157,10 @@
 
     </div>
 
-    <!-- Tombol Buat Pengajuan Tambahan Jika Dibutuhkan -->
+    <!-- Tautan ke Detail / Kelola Pengajuan -->
     <div class="text-right">
       <a href="/kpm/apply" class="text-xs font-semibold text-[#009ee2] hover:underline">
-        + Buat Permohonan Baru Lainnya
+        Lihat Detail / Tarik Pengajuan
       </a>
     </div>
 

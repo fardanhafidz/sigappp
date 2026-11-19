@@ -13,6 +13,8 @@ from app.crypto_engine import (
     decrypt_aes_256_cbc,
     decrypt_des_cbc,
     decrypt_rc4,
+    decrypt_text_aes_256_cbc,
+    verify_sha256,
 )
 
 router = APIRouter(prefix="/verifier")
@@ -35,6 +37,26 @@ def check_verifier_user(request: Request, db: Session) -> User:
     return user
 
 
+def _get_stats(db: Session) -> dict[str, int]:
+    """Menghitung metrik ringkasan antrean untuk dashboard dan badge sidebar."""
+    return {
+        "total": db.query(Application).count(),
+        "pending": db.query(Application).filter(Application.status == "Pending").count(),
+        "approved": db.query(Application).filter(Application.status == "Approved").count(),
+        "rejected": db.query(Application).filter(Application.status == "Rejected").count(),
+    }
+
+
+def _attach_plain_keterangan(app: Application) -> None:
+    """Mendekripsi alamat/keterangan milik pemilik pengajuan ke atribut transient."""
+    owner = app.user
+    if not owner:
+        app.keterangan_plain = app.keterangan or ""
+        return
+    aes_key = get_user_cipher_key(owner.nik, owner.kdf_salt, "AES-256-CBC")
+    app.keterangan_plain = decrypt_text_aes_256_cbc(app.keterangan, aes_key)
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def verifier_dashboard(
     request: Request,
@@ -44,11 +66,10 @@ async def verifier_dashboard(
     """
     Dashboard Verifikator:
     - Menampilkan ringkasan metrik (Total, Pending, Approved, Rejected).
-    - Menampilkan tabel seluruh permohonan warga.
+    - Menampilkan tabel seluruh permohonan warga dengan alamat yang telah didekripsi.
     """
     user = check_verifier_user(request, db)
 
-    # Filter status jika dipilih
     query = db.query(Application).options(
         joinedload(Application.user),
         joinedload(Application.documents)
@@ -58,19 +79,8 @@ async def verifier_dashboard(
         query = query.filter(Application.status == current_status)
 
     applications = query.order_by(Application.created_at.desc()).all()
-
-    # Hitung metrik ringkasan
-    total = db.query(Application).count()
-    pending = db.query(Application).filter(Application.status == "Pending").count()
-    approved = db.query(Application).filter(Application.status == "Approved").count()
-    rejected = db.query(Application).filter(Application.status == "Rejected").count()
-
-    stats = {
-        "total": total,
-        "pending": pending,
-        "approved": approved,
-        "rejected": rejected,
-    }
+    for app in applications:
+        _attach_plain_keterangan(app)
 
     return templates.TemplateResponse(
         request=request,
@@ -78,7 +88,7 @@ async def verifier_dashboard(
         context={
             "current_user": user,
             "applications": applications,
-            "stats": stats,
+            "stats": _get_stats(db),
             "current_status": current_status,
         }
     )
@@ -105,12 +115,15 @@ async def verifier_application_detail(
     if not application:
         raise HTTPException(status_code=404, detail="Pengajuan tidak ditemukan.")
 
+    _attach_plain_keterangan(application)
+
     return templates.TemplateResponse(
         request=request,
         name="verifier_detail.html",
         context={
             "current_user": user,
             "application": application,
+            "stats": _get_stats(db),
         }
     )
 
@@ -124,7 +137,7 @@ async def update_application_status(
     db: Session = Depends(get_db)
 ):
     """Memperbarui status pengajuan (Approved / Rejected / Pending) dan catatan verifikator."""
-    user = check_verifier_user(request, db)
+    check_verifier_user(request, db)
 
     application = db.query(Application).filter(Application.id == app_id).first()
     if not application:
@@ -151,15 +164,14 @@ async def verifier_download_file(
 ):
     """
     Unduh dan dekripsi berkas warga on-the-fly oleh Verifikator Dinsos:
-    Menggunakan kunci KDF pengguna pemilik berkas dan IV yang tersimpan di DB.
+    Menggunakan kunci KDF milik pemilik berkas, IV/nonce tersimpan, serta verifikasi SHA-256.
     """
-    user = check_verifier_user(request, db)
+    check_verifier_user(request, db)
 
     doc = db.query(Document).filter(Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan.")
 
-    # Dapatkan pemilik berkas untuk derivasi kunci KDF
     owner_user = doc.user
     if not owner_user:
         raise HTTPException(status_code=404, detail="Pemilik dokumen tidak ditemukan.")
@@ -174,20 +186,29 @@ async def verifier_download_file(
     # Dekripsi on-the-fly
     try:
         if "AES" in doc.cipher_used:
-            key = get_user_cipher_key(owner_user.hashed_password, owner_user.kdf_salt, "AES-256-CBC")
+            key = get_user_cipher_key(owner_user.nik, owner_user.kdf_salt, "AES-256-CBC")
             iv = bytes.fromhex(doc.iv_hex)
             plain_bytes = decrypt_aes_256_cbc(ciphertext, key, iv)
         elif "DES" in doc.cipher_used:
-            key = get_user_cipher_key(owner_user.hashed_password, owner_user.kdf_salt, "DES-CBC")
+            key = get_user_cipher_key(owner_user.nik, owner_user.kdf_salt, "DES-CBC")
             iv = bytes.fromhex(doc.iv_hex)
             plain_bytes = decrypt_des_cbc(ciphertext, key, iv)
         elif "RC4" in doc.cipher_used:
-            key = get_user_cipher_key(owner_user.hashed_password, owner_user.kdf_salt, "RC4")
-            plain_bytes = decrypt_rc4(ciphertext, key)
+            if not doc.iv_hex:
+                raise ValueError("Nonce RC4 tidak ditemukan pada metadata dokumen.")
+            key = get_user_cipher_key(owner_user.nik, owner_user.kdf_salt, "RC4")
+            nonce = bytes.fromhex(doc.iv_hex)
+            plain_bytes = decrypt_rc4(ciphertext, key, nonce)
         else:
             raise ValueError(f"Cipher {doc.cipher_used} tidak dikenal.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mendekripsi berkas: {str(e)}")
+
+    if not verify_sha256(plain_bytes, doc.sha256_hash):
+        raise HTTPException(
+            status_code=500,
+            detail="Verifikasi integritas SHA-256 gagal: berkas terenkripsi telah termodifikasi atau korup."
+        )
 
     return StreamingResponse(
         io.BytesIO(plain_bytes),
@@ -213,11 +234,8 @@ async def verifier_keluarga(request: Request, db: Session = Depends(get_db)):
         .order_by(Application.updated_at.desc())
         .all()
     )
-
-    total = db.query(Application).count()
-    pending = db.query(Application).filter(Application.status == "Pending").count()
-    approved = db.query(Application).filter(Application.status == "Approved").count()
-    rejected = db.query(Application).filter(Application.status == "Rejected").count()
+    for app in approved_apps:
+        _attach_plain_keterangan(app)
 
     total_docs = sum(len(a.documents) for a in approved_apps)
 
@@ -228,7 +246,7 @@ async def verifier_keluarga(request: Request, db: Session = Depends(get_db)):
             "current_user": user,
             "approved_apps": approved_apps,
             "total_docs": total_docs,
-            "stats": {"total": total, "pending": pending, "approved": approved, "rejected": rejected},
+            "stats": _get_stats(db),
         }
     )
 
@@ -264,6 +282,7 @@ async def verifier_arsip(request: Request, db: Session = Depends(get_db)):
             "aes_count": aes_count,
             "des_count": des_count,
             "rc4_count": rc4_count,
+            "stats": _get_stats(db),
         }
     )
 
@@ -273,7 +292,7 @@ async def verifier_arsip(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────────────────
 @router.get("/alamat", response_class=HTMLResponse)
 async def verifier_alamat(request: Request, db: Session = Depends(get_db)):
-    """Peta distribusi warga pemohon berdasarkan keterangan/domisili."""
+    """Peta distribusi warga pemohon berdasarkan domisili hasil dekripsi."""
     user = check_verifier_user(request, db)
 
     all_apps = (
@@ -283,10 +302,10 @@ async def verifier_alamat(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    # Kelompokkan berdasarkan keterangan (digunakan sebagai "alamat/wilayah")
     wilayah_map: dict[str, list] = {}
     for app in all_apps:
-        key = (app.keterangan or "Tidak Diketahui").strip()[:60]
+        _attach_plain_keterangan(app)
+        key = (app.keterangan_plain or "Tidak Diketahui").strip()[:60]
         wilayah_map.setdefault(key, []).append(app)
 
     return templates.TemplateResponse(
@@ -295,6 +314,7 @@ async def verifier_alamat(request: Request, db: Session = Depends(get_db)):
         context={
             "current_user": user,
             "wilayah_list": wilayah_map,
+            "stats": _get_stats(db),
         }
     )
 
@@ -307,16 +327,11 @@ async def verifier_akun(request: Request, db: Session = Depends(get_db)):
     """Profil dan informasi keamanan akun verifikator yang sedang login."""
     user = check_verifier_user(request, db)
 
-    total = db.query(Application).count()
-    approved = db.query(Application).filter(Application.status == "Approved").count()
-    rejected = db.query(Application).filter(Application.status == "Rejected").count()
-
     return templates.TemplateResponse(
         request=request,
         name="verifier_akun.html",
         context={
             "current_user": user,
-            "stats": {"total": total, "approved": approved, "rejected": rejected},
+            "stats": _get_stats(db),
         }
     )
-

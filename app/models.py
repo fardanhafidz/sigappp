@@ -7,7 +7,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    nik = Column(String(16), unique=True, index=True, nullable=False)
+    nik = Column(String(18), unique=True, index=True, nullable=False)
     nama = Column(String(100), nullable=False)
     hashed_password = Column(String(255), nullable=False)
     kdf_salt = Column(String(64), nullable=False)  # Hex salt acak untuk PBKDF2
@@ -28,7 +28,7 @@ class Application(Base):
     id = Column(Integer, primary_key=True, index=True)
     nomor_pengajuan = Column(String(50), unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    keterangan = Column(Text, nullable=True)
+    keterangan = Column(Text, nullable=True)  # Disimpan terenkripsi AES-256-CBC (format ENC:AES256CBC:<iv>:<ct>)
     status = Column(String(20), default="Pending", nullable=False)  # Pending, Approved, Rejected
     verifikator_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -54,7 +54,8 @@ class Document(Base):
     original_filename = Column(String(255), nullable=False)
     mime_type = Column(String(100), nullable=False)
     cipher_used = Column(String(50), nullable=False)  # AES-256-CBC, DES-CBC, RC4
-    iv_hex = Column(String(64), nullable=True)  # IV hex jika cipher CBC
+    iv_hex = Column(String(64), nullable=True)  # IV hex (AES/DES CBC) atau nonce hex 16-byte (RC4)
+    sha256_hash = Column(String(64), nullable=True)  # Hash SHA-256 file asli untuk verifikasi keutuhan
     file_size = Column(Integer, nullable=False)  # Ukuran dalam bytes
     file_path = Column(String(255), nullable=False)  # Path file .enc pada disk
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

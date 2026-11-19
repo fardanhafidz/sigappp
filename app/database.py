@@ -32,9 +32,16 @@ def get_db():
 def init_db():
     from app import models
     from app.auth import get_password_hash
+    from sqlalchemy import text
     import secrets
 
     Base.metadata.create_all(bind=engine)
+
+    # Auto-migration ringan: pastikan kolom sha256_hash tersedia pada DB eksisting
+    with engine.begin() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(documents)")).fetchall()]
+        if "sha256_hash" not in cols:
+            conn.execute(text("ALTER TABLE documents ADD COLUMN sha256_hash VARCHAR(64)"))
 
     # Seed akun verifikator awal jika belum ada
     db = SessionLocal()

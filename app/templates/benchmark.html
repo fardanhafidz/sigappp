@@ -1,52 +1,155 @@
 {% extends "base.html" %}
 
-{% block title %}Audit Performa Kriptografi - Portal Bansos{% endblock %}
+{% block title %}Audit Performa Kriptografi - SIGAP-PDP{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
-  <!-- Header: Title, Subtitle & Action Button (Sesuai admin-panel-kriptografi.jpeg) -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  <!-- Header: Title, Payload Size Switcher & Run Button -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
-      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Audit Performa Kriptografi</h1>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Audit Performa &amp; Evaluasi Kriptografi</h1>
       <p class="text-xs sm:text-sm text-slate-500 mt-1">
-        Pengujian komparasi efisiensi komputasi enkripsi berkas administrasi bansos.
+        Pengujian komparasi apple-to-apple (AES-256-CBC, DES-CBC, RC4) dan interpretasi hasil untuk skenario SIGAP-PDP.
       </p>
     </div>
 
-    <div>
-      <a href="/benchmark"
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Payload size switcher -->
+      <div class="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs">
+        <a href="/benchmark?size_kb=100"
+          class="px-2.5 py-1.5 rounded-md font-semibold transition {% if selected_size_kb == 100 %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+          100 KB
+        </a>
+        <a href="/benchmark?size_kb=1024"
+          class="px-2.5 py-1.5 rounded-md font-semibold transition {% if selected_size_kb == 1024 %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+          1 MB
+        </a>
+        <a href="/benchmark?size_kb=5120"
+          class="px-2.5 py-1.5 rounded-md font-semibold transition {% if selected_size_kb == 5120 %}bg-white text-slate-900 shadow-xs{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+          5 MB
+        </a>
+      </div>
+
+      <a href="/benchmark?size_kb={{ selected_size_kb }}"
         class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold text-white bg-[#009ee2] hover:bg-[#0284c7] shadow-sm transition active:scale-95">
         <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
           <path d="M8 5v14l11-7z"/>
         </svg>
-        <span>Jalankan Benchmark</span>
+        <span>Jalankan Ulang Benchmark</span>
       </a>
     </div>
   </div>
 
-  <!-- Main Card Container: System Status Bar + Scenarios Table + Footer -->
+  <!-- CARD 1: Apple-to-Apple Comparison Table -->
   <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
-
-    <!-- System Status Bar -->
+    <!-- Honest Environment Status Bar -->
     <div class="px-6 py-3.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
-      <div class="flex items-center gap-2">
-        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="flex flex-wrap items-center gap-2">
+        <svg class="w-4 h-4 text-[#009ee2]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
-        <span class="text-slate-700 font-medium">Lingkungan Pengujian:</span>
+        <span class="text-slate-700 font-medium">Lingkungan Aktual:</span>
         <span class="px-2.5 py-1 bg-slate-100 text-slate-800 rounded font-mono text-[11px] font-semibold border border-slate-200/70">
-          OpenSSL 3.0.9 (Engine SSE4.2 / AVX2)
+          Python {{ comparison.environment.python_version }} &bull; PyCryptodome {{ comparison.environment.pycryptodome_version }} &bull; {{ comparison.environment.os_info }}
         </span>
       </div>
 
       <div class="flex items-center gap-2 text-xs font-mono text-slate-600">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>Node Verifikasi: JKT-DTKS-01</span>
+        <span>Payload Identik: {{ comparison.data_size_label }} ({{ comparison.iterations }} iterasi + 1 warm-up)</span>
       </div>
     </div>
 
-    <!-- Scenarios Table -->
+    <div class="px-6 py-3 bg-sky-50/50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+      <div class="text-xs font-bold text-slate-800">
+        1. Perbandingan Sejajar (Apple-to-Apple) pada Payload {{ comparison.data_size_label }}
+      </div>
+      <div class="text-[11px] text-slate-500">
+        Tercepat: <strong class="text-slate-800">{{ comparison.summary.fastest_cipher }}</strong> ({{ comparison.summary.fastest_speed_mbps }} MB/s) &bull;
+        RC4 <strong class="text-slate-800">{{ comparison.summary.rc4_vs_des_ratio }}x</strong> vs DES,
+        AES <strong class="text-slate-800">{{ comparison.summary.aes_vs_des_ratio }}x</strong> vs DES
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="bg-slate-50/70 border-b border-slate-200/80 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+            <th class="py-3.5 px-6">CIPHER &amp; MODE</th>
+            <th class="py-3.5 px-5">KUNCI / BLOK</th>
+            <th class="py-3.5 px-5 text-right">ENKRIPSI (MS)</th>
+            <th class="py-3.5 px-5 text-right">DEKRIPSI (MS)</th>
+            <th class="py-3.5 px-5 text-right">THROUGHPUT ENK / DEK</th>
+            <th class="py-3.5 px-5 text-right">OVERHEAD</th>
+            <th class="py-3.5 px-6 text-center">INTEGRITAS</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for item in comparison.entries %}
+            <tr class="hover:bg-slate-50/60 transition">
+              <td class="py-4 px-6">
+                {% if item.badge_type == 'aes' %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-[#e0f2fe] text-[#0284c7] font-mono text-xs font-semibold border border-sky-100">
+                    {{ item.cipher }}
+                  </span>
+                {% elif item.badge_type == 'des' %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-purple-50 text-purple-700 font-mono text-xs font-semibold border border-purple-200/80">
+                    {{ item.cipher }}
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-mono text-xs font-semibold border border-slate-200">
+                    {{ item.cipher }}
+                  </span>
+                {% endif %}
+                <div class="text-[11px] text-slate-400 mt-1">{{ item.use_case }}</div>
+              </td>
+              <td class="py-4 px-5 font-mono text-slate-600 text-[11px]">
+                <div class="font-semibold text-slate-700">{{ item.key_size_bits }}-bit</div>
+                <div class="text-slate-400">{{ item.block_info }}</div>
+              </td>
+              <td class="py-4 px-5 text-right font-mono text-slate-700">
+                {{ "%.3f"|format(item.encrypt_time_ms) }} ms
+              </td>
+              <td class="py-4 px-5 text-right font-mono text-slate-700">
+                {{ "%.3f"|format(item.decrypt_time_ms) }} ms
+              </td>
+              <td class="py-4 px-5 text-right font-mono font-bold text-slate-900">
+                {{ item.encrypt_speed_mbps }} / {{ item.decrypt_speed_mbps }} MB/s
+              </td>
+              <td class="py-4 px-5 text-right font-mono text-slate-600">
+                +{{ item.overhead_bytes }} B
+              </td>
+              <td class="py-4 px-6 text-center">
+                {% if item.integrity_ok %}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Lossless SHA-256 &#10003;
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700">
+                    Gagal
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CARD 2: 4 Skenario Nyata SIGAP-PDP -->
+  <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden">
+    <div class="px-6 py-3.5 bg-white border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="text-sm font-bold text-slate-900">2. Simulasi 4 Skenario Data Nyata SIGAP-PDP</h2>
+        <p class="text-[11px] text-slate-400 mt-0.5">Pengukuran nyata (tanpa estimasi/clamping) sesuai ukuran payload per kategori berkas bansos.</p>
+      </div>
+      <div class="text-[11px] font-mono text-slate-400">
+        Terakhir diuji: {{ last_tested }}
+      </div>
+    </div>
+
     <div class="overflow-x-auto">
       <table class="w-full text-left text-xs border-collapse">
         <thead>
@@ -61,13 +164,10 @@
         <tbody class="divide-y divide-slate-100">
           {% for s in scenarios %}
             <tr class="hover:bg-slate-50/60 transition">
-              <!-- Skenario Uji -->
               <td class="py-4 px-6">
                 <div class="font-bold text-slate-800 text-sm">{{ s.name }}</div>
                 <div class="text-[11px] text-slate-400 mt-0.5">{{ s.desc }}</div>
               </td>
-
-              <!-- Cipher Badge -->
               <td class="py-4 px-6">
                 {% if s.cipher_badge_type == 'aes' %}
                   <span class="inline-flex items-center px-2.5 py-1 rounded bg-[#e0f2fe] text-[#0284c7] font-mono text-xs font-semibold border border-sky-100">
@@ -83,37 +183,42 @@
                   </span>
                 {% endif %}
               </td>
-
-              <!-- Waktu Enkripsi -->
-              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">
-                {{ s.enc_time_ms }}
-              </td>
-
-              <!-- Waktu Dekripsi -->
-              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">
-                {{ s.dec_time_ms }}
-              </td>
-
-              <!-- Throughput -->
-              <td class="py-4 px-6 text-right font-mono font-bold text-slate-900 text-xs sm:text-sm">
-                {{ s.throughput }}
-              </td>
+              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">{{ s.enc_time_ms }}</td>
+              <td class="py-4 px-6 text-right font-mono text-slate-700 text-xs sm:text-sm">{{ s.dec_time_ms }}</td>
+              <td class="py-4 px-6 text-right font-mono font-bold text-slate-900 text-xs sm:text-sm">{{ s.throughput }}</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+  </div>
 
-    <!-- Table Footer Bar -->
-    <div class="px-6 py-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-      <div>
-        Menampilkan {{ scenarios|length }} skenario tolok ukur kriptografi aktif
-      </div>
-      <div class="font-mono text-slate-400">
-        Waktu pengujian terakhir: {{ last_tested }}
-      </div>
+  <!-- CARD 3: Metodologi Pengukuran & Interpretasi Hasil -->
+  <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+    <div>
+      <h2 class="text-sm font-bold text-slate-900">3. Metodologi Pengukuran &amp; Interpretasi Hasil untuk Skenario Bansos</h2>
+      <p class="text-xs text-slate-500 mt-0.5">Penjelasan reliabilitas alat ukur serta implikasi keamanan dan performa bagi arsitektur SIGAP-PDP.</p>
     </div>
 
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs leading-relaxed">
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+        <div class="font-bold text-slate-800">Metodologi Pengukuran yang Andal</div>
+        <ul class="list-disc pl-4 space-y-1.5 text-slate-600">
+          <li><strong>Payload &amp; Timer Identik:</strong> Ketiga cipher mengolah byte acak yang sama persis (<code>os.urandom</code>) dan diukur memakai timer resolusi tinggi <code>time.perf_counter()</code>.</li>
+          <li><strong>Warm-Up &amp; Rata-Rata Multi-Iterasi:</strong> 1 kali <em>warm-up</em> dijalankan sebelum {{ comparison.iterations }} iterasi pengukuran untuk mengurangi bias alokasi awal dan cache CPU.</li>
+          <li><strong>Metrik Terukur:</strong> Waktu enkripsi/dekripsi (ms), throughput (MB/s), overhead ukuran padding (bytes), dan bukti keutuhan <em>lossless</em> (perbandingan SHA-256).</li>
+        </ul>
+      </div>
+
+      <div class="p-4 rounded-xl bg-sky-50/60 border border-sky-200/80 space-y-2">
+        <div class="font-bold text-slate-900">Interpretasi Hasil pada Skenario SIGAP-PDP</div>
+        <ul class="list-disc pl-4 space-y-1.5 text-slate-700">
+          <li><strong>AES-256-CBC ({{ comparison.by_key['AES-256-CBC'].avg_speed_mbps }} MB/s, {{ comparison.summary.aes_vs_des_ratio }}x lebih cepat dari DES):</strong> Keseimbangan keamanan (256-bit) dan kecepatan terbaik berkat dukungan instruksi hardware modern &rarr; dipilih sebagai standar utama data identitas &amp; finansial (KTP/KK, SKTM, Alamat) sesuai UU PDP.</li>
+          <li><strong>DES-CBC ({{ comparison.by_key['DES-CBC'].avg_speed_mbps }} MB/s, paling lambat):</strong> Ukuran blok kecil (8 byte) dan 16 ronde Feistel membuat throughput paling rendah, ditambah kunci efektif hanya 56-bit &rarr; dibatasi khusus untuk simulasi kompatibilitas arsip <em>legacy</em> pemda, bukan untuk data baru.</li>
+          <li><strong>RC4 + Nonce ({{ comparison.by_key['RC4'].avg_speed_mbps }} MB/s, {{ comparison.summary.rc4_vs_des_ratio }}x lebih cepat dari DES):</strong> Stream cipher memproses byte secara langsung tanpa padding (overhead 0 B) sehingga sangat cepat untuk video besar, namun karena kelemahan historis RC4 (RFC 7465), sistem wajib memakai nonce acak per berkas + verifikasi SHA-256 (dan di sistem produksi disarankan migrasi ke AES-GCM/ChaCha20).</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
 </div>

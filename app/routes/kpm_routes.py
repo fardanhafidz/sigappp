@@ -18,6 +18,10 @@ from app.crypto_engine import (
     decrypt_des_cbc,
     encrypt_rc4,
     decrypt_rc4,
+    encrypt_text_aes_256_cbc,
+    decrypt_text_aes_256_cbc,
+    compute_sha256,
+    verify_sha256,
 )
 
 router = APIRouter(prefix="/kpm")
@@ -43,6 +47,12 @@ def check_kpm_user(request: Request, db: Session) -> User:
     return user
 
 
+def _attach_plain_keterangan(app: Application, user: User) -> None:
+    """Mendekripsi alamat/keterangan ke atribut transient tanpa mengubah nilai DB."""
+    aes_key = get_user_cipher_key(user.nik, user.kdf_salt, "AES-256-CBC")
+    app.keterangan_plain = decrypt_text_aes_256_cbc(app.keterangan, aes_key)
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def kpm_dashboard(request: Request, db: Session = Depends(get_db)):
     """Menampilkan dashboard warga KPM dengan daftar pengajuan dan berkas miliknya."""
@@ -54,6 +64,9 @@ async def kpm_dashboard(request: Request, db: Session = Depends(get_db)):
         .order_by(Application.created_at.desc())
         .all()
     )
+    for app in applications:
+        _attach_plain_keterangan(app, user)
+
     return templates.TemplateResponse(
         request=request,
         name="kpm_dashboard.html",
@@ -72,6 +85,9 @@ async def apply_form(request: Request, db: Session = Depends(get_db)):
         .order_by(Application.created_at.desc())
         .first()
     )
+    if existing_app:
+        _attach_plain_keterangan(existing_app, user)
+
     return templates.TemplateResponse(
         request=request,
         name="apply_form.html",
@@ -143,15 +159,15 @@ async def submit_application(
     """
     Memproses formulir bansos:
     1. Memastikan pengguna belum memiliki berkas pengajuan aktif.
-    2. Membaca bytes berkas asli.
-    3. Menurunkan kunci enkripsi dari password pengguna via PBKDF2-HMAC-SHA256.
-    4. Mengenkripsi berkas dengan cipher yang ditentukan:
+    2. Membaca bytes berkas asli dan memvalidasi ukuran.
+    3. Menurunkan kunci enkripsi dari APP_MASTER_KEY + NIK + salt via PBKDF2-HMAC-SHA256.
+    4. Mengenkripsi alamat domisili & keterangan dengan AES-256-CBC sebelum masuk SQLite.
+    5. Menghitung hash SHA-256 file asli lalu mengenkripsi berkas dengan cipher masing-masing:
        - KTP/KK: AES-256-CBC
-       - Slip Gaji: AES-256-CBC
+       - Slip Gaji/SKTM: AES-256-CBC
        - Berita Acara: DES-CBC
-       - Video Rumah: RC4
-    5. Menyimpan ciphertext biner ke storage/encrypted/{file_id}.enc.
-    6. Menyimpan metadata ke SQLite.
+       - Video Rumah: RC4 + Nonce acak 16-byte
+    6. Menyimpan ciphertext biner ke storage/encrypted/{file_id}.enc dan metadata ke SQLite.
     """
     user = check_kpm_user(request, db)
 
@@ -163,13 +179,12 @@ async def submit_application(
             status_code=status.HTTP_303_SEE_OTHER
         )
 
-    # Validasi kelengkapan berkas
-    # Batas ukuran file (dalam bytes): KTP 2MB, SKTM 5MB, Berita Acara 10MB, Video 100MB
-    MAX_SIZES_MB = {
-        "file_ktp_kk": 2,
-        "file_slip_gaji": 5,
-        "file_berita_acara": 10,
-        "file_video_rumah": 100,
+    # Batas ukuran file per kategori (dalam MB)
+    category_max_mb = {
+        "ktp_kk": 2,
+        "slip_gaji": 5,
+        "berita_acara": 10,
+        "video_rumah": 100,
     }
     uploaded_files = [
         (file_ktp_kk, "ktp_kk", "Pindaian KTP / KK", "AES-256-CBC"),
@@ -187,20 +202,9 @@ async def submit_application(
 
     # Baca dan validasi ukuran file sebelum memproses enkripsi
     file_bytes_map = {}
-    for f, category, label, cipher_type in uploaded_files:
+    for f, category, label, _ in uploaded_files:
         raw = await f.read()
-        max_bytes = MAX_SIZES_MB[f.field_name if hasattr(f, 'field_name') else category] * 1024 * 1024 if category in MAX_SIZES_MB else None
-        # Cari max size berdasarkan nama field input
-        field_max_mb = None
-        if category == "ktp_kk":
-            field_max_mb = MAX_SIZES_MB["file_ktp_kk"]
-        elif category == "slip_gaji":
-            field_max_mb = MAX_SIZES_MB["file_slip_gaji"]
-        elif category == "berita_acara":
-            field_max_mb = MAX_SIZES_MB["file_berita_acara"]
-        elif category == "video_rumah":
-            field_max_mb = MAX_SIZES_MB["file_video_rumah"]
-
+        field_max_mb = category_max_mb.get(category)
         if field_max_mb and len(raw) > field_max_mb * 1024 * 1024:
             actual_mb = round(len(raw) / 1024 / 1024, 1)
             return RedirectResponse(
@@ -209,12 +213,20 @@ async def submit_application(
             )
         file_bytes_map[category] = raw
 
+    # Turunkan kunci per cipher sekali per pengajuan
+    aes_key = get_user_cipher_key(user.nik, user.kdf_salt, "AES-256-CBC")
+    des_key = get_user_cipher_key(user.nik, user.kdf_salt, "DES-CBC")
+    rc4_key = get_user_cipher_key(user.nik, user.kdf_salt, "RC4")
+
+    # Enkripsi data pribadi teks (alamat domisili & keterangan) sebelum disimpan ke SQLite
+    encrypted_keterangan = encrypt_text_aes_256_cbc(keterangan.strip(), aes_key)
+
     # Buat record Application baru
     nomor_pengajuan = f"BANSOS-{datetime.utcnow().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
     new_app = Application(
         nomor_pengajuan=nomor_pengajuan,
         user_id=user.id,
-        keterangan=keterangan.strip(),
+        keterangan=encrypted_keterangan,
         status="Pending",
     )
     db.add(new_app)
@@ -222,22 +234,20 @@ async def submit_application(
 
     # Proses enkripsi untuk masing-masing berkas
     for file_obj, category, label, cipher_type in uploaded_files:
-        plain_bytes = file_bytes_map[category]  # gunakan bytes yang sudah dibaca saat validasi
+        plain_bytes = file_bytes_map[category]
+        sha256_hash = compute_sha256(plain_bytes)
         file_id = str(uuid.uuid4())
         iv_hex = None
 
         if cipher_type == "AES-256-CBC":
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "AES-256-CBC")
-            ciphertext, iv = encrypt_aes_256_cbc(plain_bytes, key)
+            ciphertext, iv = encrypt_aes_256_cbc(plain_bytes, aes_key)
             iv_hex = iv.hex()
         elif cipher_type == "DES-CBC":
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "DES-CBC")
-            ciphertext, iv = encrypt_des_cbc(plain_bytes, key)
+            ciphertext, iv = encrypt_des_cbc(plain_bytes, des_key)
             iv_hex = iv.hex()
         elif cipher_type == "RC4":
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "RC4")
-            ciphertext = encrypt_rc4(plain_bytes, key)
-            iv_hex = None
+            ciphertext, nonce = encrypt_rc4(plain_bytes, rc4_key)
+            iv_hex = nonce.hex()
         else:
             raise ValueError(f"Cipher {cipher_type} tidak didukung.")
 
@@ -258,6 +268,7 @@ async def submit_application(
             mime_type=file_obj.content_type or "application/octet-stream",
             cipher_used=cipher_type,
             iv_hex=iv_hex,
+            sha256_hash=sha256_hash,
             file_size=len(plain_bytes),
             file_path=os.path.join("storage", "encrypted", disk_filename),
         )
@@ -266,7 +277,7 @@ async def submit_application(
     db.commit()
 
     return RedirectResponse(
-        url=f"/kpm/dashboard?success=Pengajuan+{nomor_pengajuan}+berhasil+dikirim.+Seluruh+4+berkas+telah+dienkripsi+secara+lossless.",
+        url=f"/kpm/dashboard?success=Pengajuan+{nomor_pengajuan}+berhasil+dikirim.+Seluruh+4+berkas+dan+alamat+domisili+telah+dienkripsi+secara+lossless.",
         status_code=status.HTTP_303_SEE_OTHER
     )
 
@@ -278,9 +289,8 @@ async def download_kpm_file(
     db: Session = Depends(get_db)
 ):
     """
-    Unduh berkas milik KPM sendiri dengan dekripsi on-the-fly:
-    Membaca biner .enc dari disk, mendekripsi dengan kunci KDF pengguna,
-    lalu mengirimkan payload asli dengan StreamingResponse.
+    Unduh berkas milik KPM sendiri dengan dekripsi on-the-fly dan verifikasi SHA-256:
+    Hanya pemilik dokumen yang dapat mengunduh berkasnya sendiri.
     """
     user = check_kpm_user(request, db)
 
@@ -295,23 +305,32 @@ async def download_kpm_file(
     with open(abs_path, "rb") as f_in:
         ciphertext = f_in.read()
 
-    # Dekripsi on-the-fly
+    # Dekripsi on-the-fly menggunakan kunci hasil derivasi PBKDF2 pengguna
     try:
         if "AES" in doc.cipher_used:
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "AES-256-CBC")
+            key = get_user_cipher_key(user.nik, user.kdf_salt, "AES-256-CBC")
             iv = bytes.fromhex(doc.iv_hex)
             plain_bytes = decrypt_aes_256_cbc(ciphertext, key, iv)
         elif "DES" in doc.cipher_used:
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "DES-CBC")
+            key = get_user_cipher_key(user.nik, user.kdf_salt, "DES-CBC")
             iv = bytes.fromhex(doc.iv_hex)
             plain_bytes = decrypt_des_cbc(ciphertext, key, iv)
         elif "RC4" in doc.cipher_used:
-            key = get_user_cipher_key(user.hashed_password, user.kdf_salt, "RC4")
-            plain_bytes = decrypt_rc4(ciphertext, key)
+            if not doc.iv_hex:
+                raise ValueError("Nonce RC4 tidak ditemukan pada metadata dokumen.")
+            key = get_user_cipher_key(user.nik, user.kdf_salt, "RC4")
+            nonce = bytes.fromhex(doc.iv_hex)
+            plain_bytes = decrypt_rc4(ciphertext, key, nonce)
         else:
             raise ValueError(f"Cipher {doc.cipher_used} tidak dikenal.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mendekripsi berkas: {str(e)}")
+
+    if not verify_sha256(plain_bytes, doc.sha256_hash):
+        raise HTTPException(
+            status_code=500,
+            detail="Verifikasi integritas SHA-256 gagal: berkas terenkripsi telah termodifikasi atau korup."
+        )
 
     return StreamingResponse(
         io.BytesIO(plain_bytes),

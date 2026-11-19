@@ -48,9 +48,9 @@ async def login_action(
 ):
     """Proses autentikasi login dan set signed HTTP-only cookie."""
     nik = nik.strip()
-    if len(nik) != 16 or not nik.isdigit():
+    if len(nik) not in (16, 18) or not nik.isdigit():
         return RedirectResponse(
-            url="/auth/login?error=NIK+harus+berupa+16+digit+angka.",
+            url="/auth/login?error=NIK+(16+digit)+atau+NIP+(18+digit)+harus+berupa+angka.",
             status_code=status.HTTP_303_SEE_OTHER
         )
     user = db.query(User).filter(User.nik == nik).first()

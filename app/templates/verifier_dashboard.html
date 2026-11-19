@@ -191,7 +191,7 @@
                   <div class="text-[11px] text-slate-400 font-mono mt-0.5">NIK: {{ app.user.nik }}</div>
                 </td>
                 <td class="py-4 px-6 text-slate-600">
-                  {{ app.keterangan or 'Kelurahan Kebon Sirih' }}
+                  {{ app.keterangan_plain or '-' }}
                 </td>
                 <td class="py-4 px-6 text-slate-500 font-mono text-[11px]">
                   {{ app.created_at.strftime('%d %b %Y, %H:%M WIB') }}

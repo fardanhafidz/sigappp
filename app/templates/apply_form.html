@@ -87,8 +87,9 @@
 
           <div>
             <label class="block font-semibold text-slate-700 mb-1.5">Alamat Domisili / Keterangan Permohonan</label>
-            <input type="text" readonly value="{{ existing_app.keterangan or '-' }}"
+            <input type="text" readonly value="{{ existing_app.keterangan_plain or '-' }}"
               class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-slate-50/80 text-slate-700 text-xs font-medium cursor-not-allowed" />
+            <p class="text-[10px] text-slate-400 mt-1">Tersimpan terenkripsi AES-256-CBC (UU PDP Ps. 4 ayat 3)</p>
           </div>
         </div>
       </div>
@@ -128,13 +129,18 @@
                 <div class="min-w-0 flex-1">
                   <div class="text-xs font-bold text-slate-800">{{ doc.category_label }}</div>
                   <div class="text-[11px] text-slate-500 font-mono mt-0.5 truncate">{{ doc.original_filename }}</div>
-                  <div class="flex items-center gap-2 mt-2">
+                  <div class="flex flex-wrap items-center gap-2 mt-2">
                     <span class="text-[10px] font-mono text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
                       {{ doc.cipher_used }}
                     </span>
                     <span class="text-[10px] text-slate-400 font-mono">
                       {{ (doc.file_size / 1024)|round(1) }} KB
                     </span>
+                    {% if doc.sha256_hash %}
+                      <span class="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-mono" title="SHA-256: {{ doc.sha256_hash }}">
+                        SHA-256: {{ doc.sha256_hash[:12] }}...
+                      </span>
+                    {% endif %}
                   </div>
                 </div>
               </div>
@@ -211,6 +217,7 @@
             <input type="text" id="keterangan" name="keterangan" required
               placeholder="Contoh: Jl. Kebon Sirih No. 12, RT 04/RW 02 - Bantuan Wirausaha"
               class="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#009ee2] text-xs transition" />
+            <p class="text-[10px] text-slate-400 mt-1">Dienkripsi di database menggunakan AES-256-CBC &bull; UU PDP Ps. 4(3)</p>
           </div>
         </div>
       </div>
@@ -234,7 +241,7 @@
             </div>
             <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Pindaian KTP / KK (Max 2MB)</div>
             <div id="label-ktp" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
-            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi AES-256-CBC</span>
+            <span class="mt-2 text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-100">AES-256-CBC &bull; UU PDP Ps. 4(2) &amp; (3)</span>
           </div>
 
           <!-- 2. Surat Keterangan Tidak Mampu (Max 5MB) -> AES-256-CBC -->
@@ -248,7 +255,7 @@
             </div>
             <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Surat Keterangan Tidak Mampu (Max 5MB)</div>
             <div id="label-slip" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
-            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi AES-256-CBC</span>
+            <span class="mt-2 text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-100">AES-256-CBC &bull; UU PDP Ps. 4(2) Data Keuangan</span>
           </div>
 
           <!-- 3. Formulir Berita Acara (PDF) -> DES-CBC -->
@@ -260,9 +267,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Formulir Berita Acara (PDF)</div>
+            <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Formulir Berita Acara (PDF/DOCX)</div>
             <div id="label-ba" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
-            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi DES-CBC (Legacy)</span>
+            <span class="mt-2 text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-100">DES-CBC &bull; Interop Legacy</span>
           </div>
 
           <!-- 4. Video Bukti Kondisi Hunian (Max 100MB) -> RC4 -->
@@ -276,7 +283,7 @@
             </div>
             <div class="text-xs font-bold text-slate-800 group-hover:text-[#009ee2] transition">Video Bukti Kondisi Hunian (Max 100MB)</div>
             <div id="label-video" class="text-[11px] text-slate-400 mt-1">Klik atau seret file ke sini</div>
-            <span class="mt-2 text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-100">Enkripsi RC4 Stream</span>
+            <span class="mt-2 text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-100">RC4 + Nonce &bull; Media Stream</span>
           </div>
 
         </div>
